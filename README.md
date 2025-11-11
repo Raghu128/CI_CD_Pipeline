@@ -170,3 +170,4 @@ MIT License - Feel free to use this project for learning purposes.
 
 # Deployment test
 # Deployment with all secrets configured
+# Fixed dockerignore
