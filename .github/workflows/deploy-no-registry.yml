@@ -17,6 +17,8 @@ jobs:
           EC2_USERNAME: ${{ secrets.EC2_USERNAME }}
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
           REPO_NAME: ${{ github.event.repository.name }}
+          GH_PAT: ${{ secrets.GH_PAT }}
+          REPO_URL: ${{ github.event.repository.clone_url }}
         run: |
           echo "🚀 Starting deployment to EC2..."
           
@@ -25,7 +27,7 @@ jobs:
           chmod 600 private_key.pem
           
           # Deploy to EC2
-          ssh -o StrictHostKeyChecking=no -i private_key.pem ${EC2_USERNAME}@${EC2_HOST} << 'ENDSSH'
+          ssh -o StrictHostKeyChecking=no -i private_key.pem ${EC2_USERNAME}@${EC2_HOST} << ENDSSH
             set -e
             
             echo "📦 Checking if project exists..."
@@ -33,11 +35,11 @@ jobs:
             # Clone repo if it doesn't exist, otherwise pull
             if [ ! -d "${REPO_NAME}" ]; then
               echo "📥 Cloning repository for the first time..."
-              git clone ${{ github.event.repository.clone_url }}
+              git clone https://${GH_PAT}@github.com/Raghu128/CI_CD_Pipeline.git
             else
               echo "🔄 Pulling latest changes..."
               cd ${REPO_NAME}
-              git pull origin main
+              git pull https://${GH_PAT}@github.com/Raghu128/CI_CD_Pipeline.git main
               cd ..
             fi
             
