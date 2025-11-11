@@ -1,0 +1,106 @@
+name: Deploy to EC2 (Build on Server)
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Deploy to EC2 and Build Docker Image
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USERNAME: ${{ secrets.EC2_USERNAME }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          REPO_NAME: ${{ github.event.repository.name }}
+        run: |
+          echo "🚀 Starting deployment to EC2..."
+          
+          # Create SSH key file
+          echo "$EC2_SSH_KEY" > private_key.pem
+          chmod 600 private_key.pem
+          
+          # Deploy to EC2
+          ssh -o StrictHostKeyChecking=no -i private_key.pem ${EC2_USERNAME}@${EC2_HOST} << 'ENDSSH'
+            set -e
+            
+            echo "📦 Checking if project exists..."
+            
+            # Clone repo if it doesn't exist, otherwise pull
+            if [ ! -d "${REPO_NAME}" ]; then
+              echo "📥 Cloning repository for the first time..."
+              git clone ${{ github.event.repository.clone_url }}
+            else
+              echo "🔄 Pulling latest changes..."
+              cd ${REPO_NAME}
+              git pull origin main
+              cd ..
+            fi
+            
+            # Navigate to Frontend directory
+            cd ${REPO_NAME}/Frontend
+            
+            echo "🛑 Stopping old container..."
+            docker stop task-manager 2>/dev/null || true
+            docker rm task-manager 2>/dev/null || true
+            
+            echo "🔨 Building Docker image on EC2..."
+            docker build -t task-manager:latest .
+            
+            echo "🚀 Starting new container..."
+            docker run -d \
+              --name task-manager \
+              -p 80:80 \
+              --restart unless-stopped \
+              task-manager:latest
+            
+            echo "⏳ Waiting for container to start..."
+            sleep 5
+            
+            echo "✅ Checking container status..."
+            if docker ps | grep -q task-manager; then
+              echo "✅ Container is running successfully!"
+              docker ps | grep task-manager
+            else
+              echo "❌ Container failed to start!"
+              docker logs task-manager
+              exit 1
+            fi
+            
+            echo "🧹 Cleaning up old images..."
+            docker image prune -f
+            
+            echo "✅ Deployment completed successfully!"
+          ENDSSH
+          
+          # Clean up SSH key
+          rm -f private_key.pem
+          
+          echo ""
+          echo "=========================================="
+          echo "✅ Deployment Successful!"
+          echo "=========================================="
+          echo "Application URL: http://${EC2_HOST}"
+          echo "Git Commit: ${{ github.sha }}"
+          echo ""
+
+      - name: Verify Application Health
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+        run: |
+          echo "🔍 Verifying application is responding..."
+          
+          # Wait a moment for app to fully start
+          sleep 3
+          
+          # Check if application responds
+          if curl -f -s -o /dev/null -w "%{http_code}" http://${EC2_HOST} | grep -q "200"; then
+            echo "✅ Application is healthy and responding!"
+          else
+            echo "⚠️  Application might still be starting up. Check manually at: http://${EC2_HOST}"
+          fi
+
