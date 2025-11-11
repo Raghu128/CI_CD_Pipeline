@@ -16,9 +16,6 @@ jobs:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USERNAME: ${{ secrets.EC2_USERNAME }}
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
-          REPO_NAME: ${{ github.event.repository.name }}
-          GH_PAT: ${{ secrets.GH_PAT }}
-          REPO_URL: ${{ github.event.repository.clone_url }}
         run: |
           echo "🚀 Starting deployment to EC2..."
           
@@ -27,27 +24,24 @@ jobs:
           chmod 600 private_key.pem
           
           # Deploy to EC2
-          ssh -o StrictHostKeyChecking=no -i private_key.pem ${EC2_USERNAME}@${EC2_HOST} bash -s << ENDSSH
+          ssh -o StrictHostKeyChecking=no -i private_key.pem ${EC2_USERNAME}@${EC2_HOST} << 'ENDSSH'
             set -e
-            
-            export GH_PAT="${GH_PAT}"
-            export REPO_NAME="${REPO_NAME}"
             
             echo "📦 Checking if project exists..."
             
             # Clone repo if it doesn't exist, otherwise pull
-            if [ ! -d "\${REPO_NAME}" ]; then
+            if [ ! -d "CI_CD_Pipeline" ]; then
               echo "📥 Cloning repository for the first time..."
-              git clone https://\${GH_PAT}@github.com/Raghu128/CI_CD_Pipeline.git
+              git clone https://github.com/Raghu128/CI_CD_Pipeline.git
             else
               echo "🔄 Pulling latest changes..."
-              cd \${REPO_NAME}
-              git pull https://\${GH_PAT}@github.com/Raghu128/CI_CD_Pipeline.git main
+              cd CI_CD_Pipeline
+              git pull origin main
               cd ..
             fi
             
-            # Navigate to Frontend directory
-            cd \${REPO_NAME}/Frontend
+            echo "📂 Moving to Frontend directory..."
+            cd CI_CD_Pipeline/Frontend
             
             echo "🛑 Stopping old container..."
             docker stop task-manager 2>/dev/null || true
@@ -108,4 +102,3 @@ jobs:
           else
             echo "⚠️  Application might still be starting up. Check manually at: http://${EC2_HOST}"
           fi
-
