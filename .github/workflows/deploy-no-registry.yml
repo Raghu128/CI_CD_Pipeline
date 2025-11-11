@@ -27,24 +27,27 @@ jobs:
           chmod 600 private_key.pem
           
           # Deploy to EC2
-          ssh -o StrictHostKeyChecking=no -i private_key.pem ${EC2_USERNAME}@${EC2_HOST} << ENDSSH
+          ssh -o StrictHostKeyChecking=no -i private_key.pem ${EC2_USERNAME}@${EC2_HOST} bash -s << ENDSSH
             set -e
+            
+            export GH_PAT="${GH_PAT}"
+            export REPO_NAME="${REPO_NAME}"
             
             echo "📦 Checking if project exists..."
             
             # Clone repo if it doesn't exist, otherwise pull
-            if [ ! -d "${REPO_NAME}" ]; then
+            if [ ! -d "\${REPO_NAME}" ]; then
               echo "📥 Cloning repository for the first time..."
-              git clone https://${GH_PAT}@github.com/Raghu128/CI_CD_Pipeline.git
+              git clone https://\${GH_PAT}@github.com/Raghu128/CI_CD_Pipeline.git
             else
               echo "🔄 Pulling latest changes..."
-              cd ${REPO_NAME}
-              git pull https://${GH_PAT}@github.com/Raghu128/CI_CD_Pipeline.git main
+              cd \${REPO_NAME}
+              git pull https://\${GH_PAT}@github.com/Raghu128/CI_CD_Pipeline.git main
               cd ..
             fi
             
             # Navigate to Frontend directory
-            cd ${REPO_NAME}/Frontend
+            cd \${REPO_NAME}/Frontend
             
             echo "🛑 Stopping old container..."
             docker stop task-manager 2>/dev/null || true
