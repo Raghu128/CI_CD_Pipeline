@@ -1,4 +1,4 @@
-name: Deploy to EC2 (Build on Server)
+name: CD - Deploy to Production
 
 on:
   push:
